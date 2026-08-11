@@ -1,14 +1,3 @@
-import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { useRouter } from 'expo-router';
 import { AnalyticsCard } from '@/components/AnalyticsCard';
 import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal';
 import { DashboardStatsCard } from '@/components/DashboardStatsCard';
@@ -20,6 +9,17 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTasks } from '@/context/TaskContext';
 import { Task } from '@/types/task';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 export default function DashboardScreen() {
   const {
@@ -72,7 +72,7 @@ export default function DashboardScreen() {
                 <View>
                   {!isWeb && <ThemedText style={styles.brandTitle}>TaskFlow</ThemedText>}
                   <ThemedText style={styles.todayDate} type="small">
-                    {todayDateFormatted}
+                    Tasks for Jaise
                   </ThemedText>
                 </View>
 
