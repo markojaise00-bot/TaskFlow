@@ -1,180 +1,333 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { ExternalLink } from '@/components/external-link';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal';
+import { SettingsModal } from '@/components/SettingsModal';
+import { TaskCard } from '@/components/TaskCard';
+import { TaskFilterBar } from '@/components/TaskFilterBar';
+import { TaskFormModal } from '@/components/TaskFormModal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Collapsible } from '@/components/ui/collapsible';
-import { WebBadge } from '@/components/web-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { useTasks } from '@/context/TaskContext';
+import { Task } from '@/types/task';
 
-export default function TabTwoScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
+export default function TasksScreen() {
+  const {
+    filteredTasks,
+    tasks,
+    isLoading,
+    statusFilter,
+    setStatusFilter,
+    priorityFilter,
+    setPriorityFilter,
+    categoryFilter,
+    setCategoryFilter,
+    sortOption,
+    setSortOption,
+    searchQuery,
+    setSearchQuery,
+    addTask,
+    editTask,
+    toggleTaskStatus,
+    deleteTask,
+    clearCompletedTasks,
+  } = useTasks();
+
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
+  const handleSaveTask = async (data: any) => {
+    if (editingTask) {
+      await editTask(editingTask.id, data);
+      setEditingTask(null);
+    } else {
+      await addTask(data);
+    }
   };
-  const theme = useTheme();
 
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: Spacing.four,
-    },
-  });
+  const handleConfirmDelete = async () => {
+    if (taskToDelete) {
+      await deleteTask(taskToDelete.id);
+      setTaskToDelete(null);
+    }
+  };
+
+  const hasActiveFilters =
+    statusFilter !== 'All' ||
+    priorityFilter !== 'All' ||
+    categoryFilter !== 'All' ||
+    searchQuery !== '';
+
+  const completedCount = tasks.filter((t) => t.status === 'Completed').length;
 
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="subtitle">Explore</ThemedText>
-          <ThemedText style={styles.centerText} themeColor="textSecondary">
-            This starter app includes example{'\n'}code to help you get started.
-          </ThemedText>
+    <ThemedView style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <FlatList
+          data={filteredTasks}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          ListHeaderComponent={
+            <View>
+              {/* Header */}
+              <View style={styles.header}>
+                <View>
+                  <ThemedText style={styles.headerTitle} type="subtitle">
+                    Task List
+                  </ThemedText>
+                  <ThemedText style={styles.taskCountText} type="small">
+                    Showing {filteredTasks.length} of {tasks.length} tasks
+                  </ThemedText>
+                </View>
 
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.linkButton}>
-                <ThemedText type="link">Expo documentation</ThemedText>
-                <SymbolView
-                  tintColor={theme.text}
-                  name={{ ios: 'arrow.up.right.square', android: 'link', web: 'link' }}
-                  size={12}
-                />
-              </ThemedView>
-            </Pressable>
-          </ExternalLink>
-        </ThemedView>
+                <View style={styles.headerActions}>
+                  <Pressable
+                    hitSlop={8}
+                    style={styles.settingsHeaderBtn}
+                    onPress={() => setIsSettingsModalVisible(true)}>
+                    <ThemedText style={styles.settingsIcon}>⚙️</ThemedText>
+                  </Pressable>
 
-        <ThemedView style={styles.sectionsWrapper}>
-          <Collapsible title="File-based routing">
-            <ThemedText type="small">
-              This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
-              <ThemedText type="code">src/app/explore.tsx</ThemedText>
-            </ThemedText>
-            <ThemedText type="small">
-              The layout file in <ThemedText type="code">src/app/_layout.tsx</ThemedText> sets up
-              the tab navigator.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/router/introduction">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+                  <Pressable style={styles.addBtn} onPress={() => setIsAddModalVisible(true)}>
+                    <ThemedText style={styles.addBtnText}>+ Add Task</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
 
-          <Collapsible title="Android, iOS, and web support">
-            <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
-              <ThemedText type="small">
-                You can open this project on Android, iOS, and the web. To open the web version,
-                press <ThemedText type="smallBold">w</ThemedText> in the terminal running this
-                project.
-              </ThemedText>
-              <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
+              {/* Bulk Actions Banner */}
+              {completedCount > 0 && (
+                <View style={styles.bulkBanner}>
+                  <ThemedText style={styles.bulkText} type="small">
+                    {completedCount} task{completedCount > 1 ? 's' : ''} completed
+                  </ThemedText>
+                  <Pressable onPress={clearCompletedTasks}>
+                    <ThemedText style={styles.clearLink} type="small">
+                      Clear Completed
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              )}
+
+              {/* Filter & Sort Bar */}
+              <TaskFilterBar
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                priorityFilter={priorityFilter}
+                setPriorityFilter={setPriorityFilter}
+                categoryFilter={categoryFilter}
+                setCategoryFilter={setCategoryFilter}
+                sortOption={sortOption}
+                setSortOption={setSortOption}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
               />
-            </ThemedView>
-          </Collapsible>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <TaskCard
+              task={item}
+              onToggleStatus={toggleTaskStatus}
+              onEdit={(t) => setEditingTask(t)}
+              onDelete={(t) => setTaskToDelete(t)}
+            />
+          )}
+          ListEmptyComponent={
+            isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#2563EB" />
+                <ThemedText style={styles.loadingText} type="small">
+                  Loading tasks...
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <ThemedText style={styles.emptyIcon}>
+                  {hasActiveFilters ? '🔍' : '📋'}
+                </ThemedText>
+                <ThemedText style={styles.emptyTitle}>
+                  {hasActiveFilters ? 'No matching tasks' : 'No tasks found'}
+                </ThemedText>
+                <ThemedText style={styles.emptySubtitle} type="small">
+                  {hasActiveFilters
+                    ? 'Try clearing or adjusting your search, category, and filter options.'
+                    : 'Get started by creating your first task.'}
+                </ThemedText>
 
-          <Collapsible title="Images">
-            <ThemedText type="small">
-              For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
-              <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
-              screen densities.
-            </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
-            <ExternalLink href="https://reactnative.dev/docs/images">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+                {hasActiveFilters ? (
+                  <Pressable
+                    style={styles.clearFilterBtn}
+                    onPress={() => {
+                      setStatusFilter('All');
+                      setPriorityFilter('All');
+                      setCategoryFilter('All');
+                      setSearchQuery('');
+                    }}>
+                    <ThemedText style={styles.clearFilterText}>Reset Filters</ThemedText>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={styles.clearFilterBtn}
+                    onPress={() => setIsAddModalVisible(true)}>
+                    <ThemedText style={styles.clearFilterText}>Add New Task</ThemedText>
+                  </Pressable>
+                )}
+              </View>
+            )
+          }
+        />
 
-          <Collapsible title="Light and dark mode components">
-            <ThemedText type="small">
-              This template has light and dark mode support. The{' '}
-              <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect what the
-              user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+        {/* Modals */}
+        <TaskFormModal
+          visible={isAddModalVisible || editingTask !== null}
+          initialTask={editingTask}
+          onClose={() => {
+            setIsAddModalVisible(false);
+            setEditingTask(null);
+          }}
+          onSave={handleSaveTask}
+        />
 
-          <Collapsible title="Animations">
-            <ThemedText type="small">
-              This template includes an example of an animated component. The{' '}
-              <ThemedText type="code">src/components/ui/collapsible.tsx</ThemedText> component uses
-              the powerful <ThemedText type="code">react-native-reanimated</ThemedText> library to
-              animate opening this hint.
-            </ThemedText>
-          </Collapsible>
-        </ThemedView>
-        {Platform.OS === 'web' && <WebBadge />}
-      </ThemedView>
-    </ScrollView>
+        <ConfirmDeleteModal
+          visible={taskToDelete !== null}
+          taskTitle={taskToDelete?.title}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setTaskToDelete(null)}
+        />
+
+        <SettingsModal
+          visible={isSettingsModalVisible}
+          onClose={() => setIsSettingsModalVisible(false)}
+        />
+      </SafeAreaView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
+  container: {
     flex: 1,
+    alignItems: 'center',
   },
-  contentContainer: {
+  safeArea: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.three,
+    paddingTop: Platform.select({ web: Spacing.two, android: Spacing.three, default: Spacing.two }),
+    paddingBottom: BottomTabInset + Spacing.four,
+  },
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.two,
+    marginTop: Platform.select({ web: Spacing.one, default: Spacing.two }),
+  },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+  },
+  taskCountText: {
+    opacity: 0.65,
+    marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  settingsHeaderBtn: {
+    padding: 8,
+  },
+  settingsIcon: {
+    fontSize: 20,
+  },
+  addBtn: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  addBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  bulkBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  bulkText: {
+    color: '#B45309',
+    fontWeight: '600',
+  },
+  clearLink: {
+    color: '#DC2626',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-  },
-  titleContainer: {
-    gap: Spacing.three,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
-  },
-  centerText: {
-    textAlign: 'center',
-  },
-  pressed: {
+  loadingText: {
+    marginTop: 12,
     opacity: 0.7,
   },
-  linkButton: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.five,
+  emptyContainer: {
+    padding: 32,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.one,
-    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(150, 150, 150, 0.3)',
+    marginTop: 16,
   },
-  sectionsWrapper: {
-    gap: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
+  emptyIcon: {
+    fontSize: 38,
+    marginBottom: 12,
   },
-  collapsibleContent: {
-    alignItems: 'center',
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
   },
-  imageTutorial: {
-    width: '100%',
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
+  emptySubtitle: {
+    textAlign: 'center',
+    opacity: 0.7,
+    marginBottom: 16,
+    lineHeight: 20,
   },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
+  clearFilterBtn: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  clearFilterText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
   },
 });
