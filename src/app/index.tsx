@@ -72,7 +72,7 @@ export default function DashboardScreen() {
                 <View>
                   {!isWeb && <ThemedText style={styles.brandTitle}>TaskFlow</ThemedText>}
                   <ThemedText style={styles.todayDate} type="small">
-                    Tasks for Jaise
+                    {todayDateFormatted}
                   </ThemedText>
                 </View>
 
